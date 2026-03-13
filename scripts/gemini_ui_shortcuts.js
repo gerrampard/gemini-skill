@@ -6,10 +6,15 @@
       '[contenteditable="true"][data-placeholder*="Gemini"]',
       'div[contenteditable="true"][role="textbox"]'
     ],
-    sendBtn: [
-      'button[aria-label*="发送"]',
-      'button[aria-label*="Send"]',
-      'button:has-text("发送")'
+    actionBtn: [
+      '.send-button-container button.send-button',
+      '.send-button-container button'
+    ],
+    newChatBtn: [
+      '[data-test-id="new-chat-button"] a',
+      '[data-test-id="new-chat-button"]',
+      'a[aria-label="发起新对话"]',
+      'a[aria-label*="new chat" i]'
     ],
     modelBtn: [
       'button:has-text("Gemini")',
@@ -66,13 +71,47 @@
     return {ok:true};
   }
 
+  function getStatus(){
+    const btn=find('actionBtn');
+    if(!btn) return {status:'unknown',error:'btn_not_found'};
+    const label=(btn.getAttribute('aria-label')||'').trim();
+    const disabled=btn.getAttribute('aria-disabled')==='true';
+    if(/停止|Stop/i.test(label)) return {status:'loading',label};
+    if(/发送|Send|Submit/i.test(label)) return {status:'ready',label,disabled};
+    return {status:'idle',label,disabled};
+  }
+
+  function waitForComplete(timeout,interval){
+    timeout=timeout||120000;
+    interval=interval||2000;
+    return new Promise(function(resolve){
+      var elapsed=0;
+      var timer=setInterval(function(){
+        elapsed+=interval;
+        var s=getStatus();
+        if(s.status!=='loading'){
+          clearInterval(timer);
+          resolve({ok:true,status:s.status,elapsed});
+          return;
+        }
+        if(elapsed>=timeout){
+          clearInterval(timer);
+          resolve({ok:false,status:'timeout',elapsed});
+        }
+      },interval);
+    });
+  }
+
   function probe(){
+    var s=getStatus();
     return {
       promptInput: !!find('promptInput'),
-      sendBtn: !!find('sendBtn'),
-      modelBtn: !!find('modelBtn')
+      actionBtn: !!find('actionBtn'),
+      newChatBtn: !!find('newChatBtn'),
+      modelBtn: !!find('modelBtn'),
+      status: s.status
     };
   }
 
-  window.GeminiOps = {probe, click, fillPrompt, selectors:S, version:'0.1.0'};
+  window.GeminiOps = {probe, click, fillPrompt, getStatus, waitForComplete, selectors:S, version:'0.3.0'};
 })();

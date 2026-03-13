@@ -16,15 +16,27 @@
 
 若切换失败，保留默认并告知用户。
 
-## 3) 生图结果获取
+## 3) 按钮状态检测
+
+`.send-button-container` 内的按钮通过 `aria-label` 区分三种状态：
+
+- **空闲（idle）**：aria-label 为麦克风相关，按钮 disabled，输入框为空。
+- **可发送（ready）**：aria-label 为"发送"/"Send"，输入框有内容。
+- **生成中（loading）**：aria-label 为"停止"/"Stop"，Gemini 正在输出。
+
+使用方式：
+- `GeminiOps.getStatus()` → 返回 `{status: 'idle'|'ready'|'loading', label, disabled}`
+- `GeminiOps.waitForComplete(timeout, interval)` → 返回 Promise，状态脱离 `loading` 后 resolve
+
+## 4) 生图结果获取
 
 优先顺序：
-1. 图片右上角“下载原图”
+1. 图片右上角"下载原图"
 2. 右键另存为（标清）
 
 下载到本地后再通过渠道回传。
 
-## 4) 用户提示文案（建议）
+## 5) 用户提示文案（建议）
 
 - 开始生图：
   - `已收到，正在用 Gemini 给你绘图中 🎨`
