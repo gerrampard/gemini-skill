@@ -236,31 +236,38 @@ function isPortAlive(port, host = '127.0.0.1', timeout = 1500) {
 /** 浏览器启动参数（适用于所有 Chromium 系浏览器） */
 const BROWSER_ARGS = [
   // ── 基础 ──
-  '--no-first-run',
-  '--disable-default-apps',
-  '--disable-popup-blocking',
+  '--no-first-run',                          // 跳过首次运行的欢迎页 / 引导流程
+  '--disable-default-apps',                  // 不安装 Chrome 默认应用（Gmail、Drive 等）
+  '--disable-popup-blocking',                // 允许弹窗，避免 Gemini 功能被拦截
 
-  // ── 渲染稳定性（无头 / 无显卡服务器） ──
-  '--disable-gpu',
-  '--disable-software-rasterizer',
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
+  // ── 渲染稳定性 ──
+  '--disable-gpu',                           // 禁用 GPU 硬件加速，防止无显卡环境崩溃
+  '--disable-software-rasterizer',           // 禁用软件光栅化后备，减少 CPU 开销
+  '--disable-dev-shm-usage',                 // 不使用 /dev/shm（Docker 中该分区常太小导致崩溃）
+
+  // ── sandbox：仅 Linux 无图形环境需要，Windows/macOS 桌面不加 ──
+  // --no-sandbox / --disable-setuid-sandbox 在 Windows Edge 上会触发安全警告横幅
+  ...(platform() === 'linux'
+    ? [
+        '--no-sandbox',                      // 关闭 Chromium 沙箱（Linux root 用户必须）
+        '--disable-setuid-sandbox',          // 关闭 setuid 沙箱（配合 --no-sandbox）
+      ]
+    : []),
 
   // ── 反检测（配合 stealth 插件 + ignoreDefaultArgs） ──
-  '--disable-blink-features=AutomationControlled',
+  '--disable-blink-features=AutomationControlled', // 移除 navigator.webdriver 标记，降低被检测为自动化的风险
 
   // ── 网络 / 性能 ──
-  '--disable-background-networking',
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
+  '--disable-background-networking',         // 禁止后台网络请求（更新检查、遥测等）
+  '--disable-background-timer-throttling',   // 后台标签页定时器不降频，保证轮询精度
+  '--disable-backgrounding-occluded-windows',// 被遮挡的窗口不降级渲染
+  '--disable-renderer-backgrounding',        // 渲染进程进入后台时不降优先级
 
   // ── UI 纯净度 ──
-  '--disable-features=Translate',
-  '--no-default-browser-check',
-  '--disable-crash-reporter',
-  '--hide-crash-restore-bubble',
+  '--disable-features=Translate',            // 禁用自动翻译弹窗
+  '--no-default-browser-check',              // 不弹"设为默认浏览器"提示
+  '--disable-crash-reporter',                // 禁用崩溃上报，减少后台进程
+  '--hide-crash-restore-bubble',             // 隐藏"恢复上次会话"气泡
 ];
 
 /**
