@@ -3,4 +3,5 @@ node_modules/
 .DS_Store
 dist/
 output/
-.env
+.env.development
+.env.*.local

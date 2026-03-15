@@ -6,10 +6,74 @@
  *
  * 环境变量来源（优先级从高到低）：
  *   1. 进程环境变量（process.env）
- *   2. .env 文件（需调用方自行加载，如 dotenv）
- *   3. 代码默认值
+ *   2. .env.development（开发环境，git-ignored）
+ *   3. .env（基础配置，可提交到 git）
+ *   4. 代码默认值
+ *
+ * .env 文件加载说明：
+ *   - 本模块内置了轻量级 parseEnvFile 解析器，零外部依赖。
+ *   - 作为 skill 库被 import 使用，不应要求调用方修改启动命令或安装额外依赖。
+ *   - 如果调用方已通过以下方式加载了 .env，本模块也能无缝工作（process.env 优先级最高）：
+ *     · Node.js ≥ v20.6.0: node --env-file=.env --env-file=.env.development app.js
+ *     · dotenv 库: dotenv.config({ path: ['.env.development', '.env'] })
  */
 import { resolve } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+// ── 手动加载 .env 文件（不依赖 dotenv） ──
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = resolve(__dirname, '..');
+
+/**
+ * 解析 .env 文件内容为 key-value 对象
+ * @param {string} filePath
+ * @returns {Record<string, string>}
+ */
+function parseEnvFile(filePath) {
+  if (!existsSync(filePath)) return {};
+  const content = readFileSync(filePath, 'utf-8');
+  const result = {};
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    // 跳过空行和注释
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIndex = trimmed.indexOf('=');
+    if (eqIndex === -1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    let value = trimmed.slice(eqIndex + 1).trim();
+    // 去掉引号包裹
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (key && value) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+// 加载顺序：.env.development 优先 → .env 兜底
+// 已存在的 process.env 不会被覆盖（进程环境变量优先级最高）
+// 因为是 "不覆盖" 策略，所以高优先级的文件先加载
+const devEnv = parseEnvFile(join(projectRoot, '.env.development'));
+const baseEnv = parseEnvFile(join(projectRoot, '.env'));
+
+// 优先级：process.env > .env.development > .env > 代码默认值
+for (const [key, value] of Object.entries(devEnv)) {
+  if (process.env[key] === undefined || process.env[key] === '') {
+    process.env[key] = value;
+  }
+}
+for (const [key, value] of Object.entries(baseEnv)) {
+  if (process.env[key] === undefined || process.env[key] === '') {
+    process.env[key] = value;
+  }
+}
 
 const env = process.env;
 
