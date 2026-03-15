@@ -385,12 +385,31 @@ export async function ensureBrowser(opts = {}) {
       `[browser] 端口 ${port} 无可用浏览器，且未找到可执行文件。\n` +
       `请通过以下任一方式解决：\n` +
       `  1. 设置环境变量 BROWSER_PATH 指向 Chrome / Edge / Chromium 的可执行文件\n` +
-      `  2. 手动启动浏览器：chrome --remote-debugging-port=${port} --user-data-dir="${userDataDir}"\n` +
+      `  2. 手动启动浏览器并开启调试端口：\n` +
+      `     msedge --remote-debugging-port=${port}\n` +
+      `     chrome --remote-debugging-port=${port}\n` +
       `  3. 安装 Chrome 或 Edge 到默认位置`
     );
   }
 
-  _browser = await launchBrowser({ executablePath: resolvedPath, port, userDataDir, headless });
+  try {
+    _browser = await launchBrowser({ executablePath: resolvedPath, port, userDataDir, headless });
+  } catch (err) {
+    // 大概率是用户数据目录被正在运行的浏览器锁住了
+    if (err.message?.includes('EPERM') || err.message?.includes('lock') || err.message?.includes('already')) {
+      throw new Error(
+        `[browser] 无法启动浏览器，用户数据目录可能被占用：${userDataDir}\n` +
+        `这通常是因为该浏览器正在运行且锁定了数据目录。\n\n` +
+        `请选择以下任一方式解决：\n` +
+        `  方式 1（推荐）：关闭正在运行的浏览器，让 skill 自动启动带调试端口的实例\n` +
+        `  方式 2：保持浏览器运行，手动启用调试端口后重启浏览器：\n` +
+        `          ${resolvedPath} --remote-debugging-port=${port}\n` +
+        `  方式 3：设置 BROWSER_USER_DATA_DIR 为独立目录（将无法复用登录态）`
+      );
+    }
+    throw err;
+  }
+
   const page = await findOrCreateGeminiPage(_browser);
   return { browser: _browser, page };
 }
