@@ -104,8 +104,17 @@ const config = {
   /** 浏览器可执行文件路径，支持 Chrome / Edge / Chromium（不设则自动检测） */
   browserPath: envStr('BROWSER_PATH', undefined),
 
-  /** CDP 远程调试端口 */
-  browserDebugPort: envInt('BROWSER_DEBUG_PORT', 9222),
+  /**
+   * CDP 远程调试端口
+   *
+   * Chromium 社区通用默认值是 9222，这里用 9223（= 9222 + 1）作为 WJZ_P 的项目专属端口。
+   * 使用独立端口的原因：
+   *   1. 不信任其他浏览器实例的反爬措施，自己启动并控制的浏览器反爬最保险。
+   *   2. 避免与用户手动启动的调试浏览器或其他工具（如 OpenClaw 默认 9222）的端口冲突。
+   *
+   * 注意：9223 是 WJZ_P 所有项目统一约定的 CDP 端口，不仅限于本项目。
+   */
+  browserDebugPort: envInt('BROWSER_DEBUG_PORT', 9223),
 
   /** 浏览器用户数据目录（不设则自动解析，见 browser.js resolveUserDataDir） */
   browserUserDataDir: envStr('BROWSER_USER_DATA_DIR', undefined),
