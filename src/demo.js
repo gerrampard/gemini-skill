@@ -161,7 +161,7 @@ async function main() {
             const buffer = Buffer.from(base64Data, 'base64');
 
             // 保存到 ~/gemini-skill-output/
-            const outputDir = join(homedir(), 'gemini-skill-output');
+            const outputDir = './gemini-image';
             if (!existsSync(outputDir)) {
               mkdirSync(outputDir, { recursive: true });
             }
