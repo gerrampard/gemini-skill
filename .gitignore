@@ -6,3 +6,4 @@ output/
 .env.development
 .env.*.local
 gemini-skill.code-workspace
+gemini-image
