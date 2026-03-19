@@ -877,6 +877,15 @@ export function createOps(page) {
     get page() {
       return page;
     },
+
+    /**
+     * 检查是否已登录 Google 账号
+     *
+     * @returns {Promise<{ok: boolean, loggedIn: boolean, barText?: string, error?: string}>}
+     */
+    async checkLogin() {
+      return isLoggedIn(op);
+    },
   };
 }
 
