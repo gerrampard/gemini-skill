@@ -9,6 +9,7 @@ import { createOperator } from './operator.js';
 import { sleep } from './util.js';
 import config from './config.js';
 import { mkdirSync } from 'node:fs';
+import { removeWatermarkFromFile, removeWatermarkFromDataUrl } from './watermark-remover.js';
 
 // ── Gemini 页面元素选择器 ──
 const SELECTORS = {
@@ -658,6 +659,18 @@ export function createOps(page) {
         const dataUrl = `data:${mime};base64,${base64Full}`;
 
         console.log(`[extractImageBase64] ✅ CDP 提取成功 (mime=${mime}, size=${(base64Full.length * 0.75 / 1024).toFixed(1)}KB)`);
+
+        // 去水印处理
+        const wmResult = await removeWatermarkFromDataUrl(dataUrl);
+        if (wmResult.ok && !wmResult.skipped) {
+          console.log(`[extractImageBase64] 🍌 水印已移除 (${wmResult.width}×${wmResult.height}, logo=${wmResult.logoSize}px)`);
+          return { ok: true, dataUrl: wmResult.dataUrl, method: 'cdp' };
+        } else if (wmResult.skipped) {
+          console.log(`[extractImageBase64] 跳过去水印: ${wmResult.reason}`);
+        } else {
+          console.warn(`[extractImageBase64] 去水印失败（不影响提取结果）: ${wmResult.error}`);
+        }
+
         return { ok: true, dataUrl, method: 'cdp' };
       } catch (err) {
         const errMsg = err.message || String(err);
@@ -831,6 +844,16 @@ export function createOps(page) {
           if (!existsSync(filePath)) {
             console.warn(`[ops] 下载文件未找到: 既不存在 ${guidPath} 也不存在 ${filePath}`);
           }
+        }
+
+        // 去水印处理
+        const wmResult = await removeWatermarkFromFile(filePath);
+        if (wmResult.ok && !wmResult.skipped) {
+          console.log(`[ops] 水印已移除 (${wmResult.width}×${wmResult.height}, logo=${wmResult.logoSize}px)`);
+        } else if (wmResult.skipped) {
+          console.log(`[ops] 跳过去水印: ${wmResult.reason}`);
+        } else {
+          console.warn(`[ops] 去水印失败（不影响下载结果）: ${wmResult.error}`);
         }
 
         return {
