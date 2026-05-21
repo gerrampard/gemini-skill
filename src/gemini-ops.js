@@ -34,8 +34,10 @@ const SELECTORS = {
   ],
   /** 发送按钮本身 — class 末尾 submit（可发送）或 stop（加载中） */
   sendBtn: [
-    '.send-button-container button.send-button',
-    '.send-button-container button',
+    'gem-icon-button.send-button button',                // 新 UI：gem-icon-button 内部的实际 button
+    'button[aria-label="发送"]',                          // 新 UI：aria-label 兜底
+    '.send-button-container button.send-button',         // 旧 UI
+    '.send-button-container button',                     // 旧 UI 兜底
   ],
   newChatBtn: [
     '[data-test-id="new-chat-button"] a',
@@ -82,20 +84,32 @@ const SELECTORS = {
   ],
   /** 加号面板按钮（点击后弹出上传菜单） */
   uploadPanelBtn: [
-    'button.upload-card-button[aria-haspopup="menu"]', // class + aria 组合
-    'button[aria-controls="upload-file-u"]',           // aria-controls 兜底
-    'button.upload-card-button',                       // class 兜底
+    'gem-icon-button[arialabel="上传和工具"] button',                  // 新 UI：gem-icon-button 包裹，arialabel 属性
+    'button[aria-label="上传和工具"][aria-haspopup="menu"]',           // 新 UI：button 上的 aria-label
+    'button[aria-label="上传和工具"]',                                  // 新 UI 兜底
+    'button.upload-card-button[aria-haspopup="menu"]',                 // 旧 UI：class + aria 组合
+    'button[aria-controls="upload-file-u"]',                           // 旧 UI：aria-controls 兜底
+    'button.upload-card-button',                                        // 旧 UI：class 兜底
   ],
   /** 上传文件选项（加号面板展开后的"上传文件"按钮） */
   uploadFileBtn: [
-    '[data-test-id="uploader-images-files-button-advanced"]', // 测试专属属性
-    'images-files-uploader',                                  // 标签名兜底
+    '[data-test-id="uploader-images-files-button-advanced"]',          // 测试专属属性（新旧 UI 通用）
+    'images-files-uploader[data-test-id]',                             // 新 UI：标签 + data-test-id
+    'images-files-uploader',                                            // 标签名兜底
   ],
   /** 图片分享按钮（hover 图片后出现） */
   shareImageBtn: [
     'button[data-test-id="share-button"]',
     'button[aria-label*="Share image" i]',
     'button[aria-label*="分享图片" i]',
+  ],
+  /** 下载完整尺寸图片按钮（hover 图片后出现的工具栏按钮） */
+  downloadFullSizeBtn: [
+    'download-generated-image-button',                            // 新 UI：自定义标签元素
+    'download-generated-image-button button',                     // 新 UI：自定义元素内的实际 button
+    'button[data-test-id="download-generated-image-button"]',     // 旧 UI：data-test-id
+    'button[data-test-id="download-enhanced-image-button"]',      // 旧 UI：另一种命名
+    'button:has(mat-icon[fonticon="download"])',                  // 兜底：包含 download 图标的 button（i18n 安全）
   ],
   /** 分享弹窗容器 */
   shareDialog: [
@@ -373,7 +387,13 @@ export function createOps(page) {
 
         const micClass = micEl ? micEl.className : '';
         const sendClass = sendContainerEl ? sendContainerEl.className : '';
-        const btnClass = btnEl ? btnEl.className : '';
+        // 新 UI 的 submit/stop 状态在外层 gem-icon-button 上，旧 UI 在 button 自身
+        // 同时收集两层的 class，统一判断
+        let btnClass = btnEl ? btnEl.className : '';
+        if (btnEl) {
+          const wrapper = btnEl.closest('gem-icon-button');
+          if (wrapper) btnClass += ' ' + wrapper.className;
+        }
 
         const micHidden = /\bhidden\b/.test(micClass);
         const sendVisible = /\bvisible\b/.test(sendClass);
@@ -802,7 +822,7 @@ export function createOps(page) {
      *   4. 监听 CDP Browser.downloadWillBegin / Browser.downloadProgress 等待下载完成
      *   5. 返回实际保存的文件路径
      *
-     * 按钮选择器：button[data-test-id="download-enhanced-image-button"]
+     * 按钮选择器：见 SELECTORS.downloadFullSizeBtn（新 UI 用 aria-label="下载完整尺寸的图片"，旧 UI 用 data-test-id="download-generated-image-button"）
      *
      * @param {object} [options]
      * @param {number} [options.index] - 图片索引（从0开始，从旧到新），不传则取最新一张
@@ -901,21 +921,53 @@ export function createOps(page) {
       await sleep(800);
 
       // 5. 点击"下载完整尺寸"按钮（带重试：hover 可能需要更长时间触发工具栏）
-      const btnSelector = 'button[data-test-id="download-generated-image-button"]';
-
       let clickResult;
       for (let attempt = 1; attempt <= 3; attempt++) {
-        clickResult = await op.click(btnSelector);
-        if (clickResult.ok) break;
+        // 先看下按钮是否已经出现，输出诊断信息
+        const btnInfo = await op.locate(SELECTORS.downloadFullSizeBtn);
+        console.log(`[downloadFullSizeImage] 第${attempt}次尝试 — locate 结果:`, btnInfo);
+
+        if (btnInfo.found) {
+          // 用坐标点击
+          clickResult = await op.click(SELECTORS.downloadFullSizeBtn);
+          console.log(`[downloadFullSizeImage] 坐标点击结果:`, clickResult);
+
+          // 双保险：再用 DOM API 直接点击实际的 button 元素（绕过坐标和遮挡问题）
+          const domClickResult = await op.query((sels) => {
+            for (const sel of sels) {
+              try {
+                const candidates = [...document.querySelectorAll(sel)];
+                for (const el of candidates) {
+                  // 找到最近的真实 button（自定义元素本身不可点击）
+                  const btn = el.tagName === 'BUTTON' ? el : el.querySelector('button') || el.closest('button');
+                  if (btn) {
+                    btn.click();
+                    return { ok: true, selector: sel, tagName: btn.tagName.toLowerCase() };
+                  }
+                }
+              } catch { /* skip */ }
+            }
+            return { ok: false, error: 'no_clickable_button_found' };
+          }, SELECTORS.downloadFullSizeBtn);
+          console.log(`[downloadFullSizeImage] DOM 点击结果:`, domClickResult);
+
+          if (clickResult.ok || domClickResult.ok) {
+            clickResult = { ok: true, selector: btnInfo.selector };
+            break;
+          }
+        }
+
         // 按钮还没出来，可能工具栏动画还没完成，再 hover 一次并多等一会儿
-        console.log(`[downloadFullSizeImage] 第${attempt}次点击下载按钮失败，重试 hover...`);
+        console.log(`[downloadFullSizeImage] 第${attempt}次未点击成功，重试 hover...`);
         await page.mouse.move(imgInfo.x, imgInfo.y);
         await sleep(500);
       }
 
-      if (!clickResult.ok) {
+      if (!clickResult || !clickResult.ok) {
         return { ok: false, error: 'full_size_download_btn_not_found', src: imgInfo.src, index: imgInfo.index, total: imgInfo.total };
       }
+
+      console.log('[downloadFullSizeImage] 下载按钮已点击，等待 CDP 下载事件...');
 
       // 6. 等待下载完成
       //    allow 模式下，Chrome 直接用 suggestedFilename 保存到 downloadDir，无需重命名。
@@ -1398,7 +1450,7 @@ export function createOps(page) {
      *   2. 等待 300ms 让菜单动画稳定
      *   3. 拦截文件选择器 + 点击"上传文件"按钮（Promise.all 并发）
      *   4. 向文件选择器塞入指定图片路径
-     *   5. 轮询等待图片加载完成（.image-preview.loading 消失）
+     *   5. 轮询等待图片加载完成（.gem-attachment-content.loading 消失）
      *
      * @param {string} filePath - 本地图片的绝对路径
      * @returns {Promise<{ok: boolean, elapsed?: number, warning?: string, error?: string, detail?: string}>}
@@ -1431,14 +1483,15 @@ export function createOps(page) {
         await fileChooser.accept([filePath]);
         console.log(`[ops] 文件已塞入，等待 Gemini 加载图片...`);
 
-        // 5. 等待图片加载完成（.image-preview.loading 消失）
+        // 5. 等待图片加载完成（.gem-attachment-content.loading 消失）
         const loadTimeout = 15_000;
         const loadInterval = 500;
         const loadStart = Date.now();
         await sleep(500); //  短暂等待 UI 响应
         while (Date.now() - loadStart < loadTimeout) {
           const loading = await op.query(() => {
-            const el = document.querySelector('.image-preview.loading');
+            // 同时带 gem-attachment-content 和 loading 两个 class，说明还在上传中
+            const el = document.querySelector('.gem-attachment-content.loading');
             return !!el;
           });
           if (!loading) {
@@ -1479,6 +1532,7 @@ export function createOps(page) {
 
       // 2. 点击发送
       const clickResult = await this.click('sendBtn');
+      console.log(`[ops] 发送按钮点击结果:`, clickResult);
       if (!clickResult.ok) {
         return { ok: false, error: 'send_click_failed', detail: clickResult, elapsed: 0 };
       }

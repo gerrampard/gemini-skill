@@ -17,7 +17,7 @@ import { createGeminiSession, disconnect } from './index.js';
 const prompt = 'Gemini你好！给我生成一张类似的图片';
 
 /** 是否下载完整尺寸原图（true=CDP拦截下载高清大图，false=base64提取页面预览图） */
-const FULL_SIZE = false;
+const FULL_SIZE = true;
 
 /** 异步等待 */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

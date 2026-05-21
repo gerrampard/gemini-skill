@@ -93,6 +93,19 @@ Cradling shattered dreams and the story we made."
 
 <br>
 
+## 🆕 What's New
+
+**v1.1.0** (2026-05) — Adapted to the **May 2026 Gemini UI redesign**:
+
+- ✅ Plus panel button (`gem-icon-button[arialabel="Upload and tools"]`)
+- ✅ Send button (`gem-icon-button.send-button`)
+- ✅ Download full-size button (`download-generated-image-button` custom element)
+- ✅ Image upload completion detection (`.gem-attachment-content.loading`)
+- ✅ Status detection compatible with the new `gem-icon-button` wrapper
+- ♻️ All selectors retain legacy UI fallbacks — both old and new versions work
+
+<br>
+
 ## ✨ Features
 
 |  | Feature | Description |

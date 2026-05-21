@@ -93,6 +93,19 @@
 
 <br>
 
+## 🆕 最新更新
+
+**v1.1.0**（2026-05）— 已适配 Gemini **2026 年 5 月最新版 UI**：
+
+- ✅ 加号面板按钮（`gem-icon-button[arialabel="上传和工具"]`）
+- ✅ 发送按钮（`gem-icon-button.send-button`）
+- ✅ 下载完整尺寸按钮（`download-generated-image-button` 自定义元素）
+- ✅ 图片上传完成检测（`.gem-attachment-content.loading`）
+- ✅ 状态判断兼容新 UI 的 `gem-icon-button` 包装层
+- ♻️ 全部选择器保留旧 UI 兜底，新旧版本均可工作
+
+<br>
+
 ## ✨ 功能特性
 
 |  | 功能 | 说明 |
