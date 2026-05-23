@@ -216,9 +216,9 @@ server.registerTool(
 server.registerTool(
   "gemini_switch_model",
   {
-    description: "切换 Gemini 模型（pro / quick / think）",
+    description: "切换 Gemini 模型（pro / flash / flash-lite）",
     inputSchema: {
-      model: z.enum(["pro", "quick", "think"]).describe("目标模型：pro=高质量, quick=快速, think=深度思考"),
+      model: z.enum(["pro", "flash", "flash-lite"]).describe("目标模型：pro=Gemini 3.1 Pro（高质量），flash=Gemini 3.5 Flash（平衡），flash-lite=Gemini 3.1 Flash-Lite（快速）"),
     },
   },
   async ({ model }) => {
@@ -232,6 +232,32 @@ server.registerTool(
       }
       return {
         content: [{ type: "text", text: `模型已切换到 ${model}${result.previousModel ? `（之前是 ${result.previousModel}）` : ''}` }],
+      };
+    } catch (err) {
+      return { content: [{ type: "text", text: `执行崩溃: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+server.registerTool(
+  "gemini_set_thinking_depth",
+  {
+    description: "切换 Gemini 思考深度（standard 标准 / extended 扩展）。仅在支持的模型下生效",
+    inputSchema: {
+      level: z.enum(["standard", "extended"]).describe("思考深度：standard=标准思考，extended=扩展思考"),
+    },
+  },
+  async ({ level }) => {
+    try {
+      const { ops } = await createGeminiSession();
+      const result = await ops.setThinkingDepth(level);
+      disconnect();
+
+      if (!result.ok) {
+        return { content: [{ type: "text", text: `切换思考深度失败: ${result.error}` }], isError: true };
+      }
+      return {
+        content: [{ type: "text", text: `思考深度已切换到 ${level}${result.previousLevel ? `（之前是 ${result.previousLevel}）` : ''}` }],
       };
     } catch (err) {
       return { content: [{ type: "text", text: `执行崩溃: ${err.message}` }], isError: true };

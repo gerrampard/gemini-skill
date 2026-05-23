@@ -46,30 +46,30 @@ const SELECTORS = {
     'a[aria-label*="new chat" i]',
   ],
   modelBtn: [
-    '[data-test-id="bard-mode-menu-button"]',      // 测试专属属性
+    '[data-test-id="bard-mode-menu-button"]',      // 测试专属属性（新旧 UI 通用）
     'button[aria-label="打开模式选择器"]',            // 中文 aria-label
     'button[aria-label*="mode selector" i]',        // 英文 aria-label 兜底
     'button.mat-mdc-menu-trigger.input-area-switch',// class 组合兜底
   ],
-  /** 模型标签文本容器（读取当前选中的模型名，如 "Pro"） */
+  /** 模型标签文本容器（读取当前选中的模型名，如 "Pro" / "Flash"） */
   modelLabel: [
-    '[data-test-id="logo-pill-label-container"] span',  // 最内层 span 包含模型名
-    'div.logo-pill-label-container span',               // class 兜底
+    '.picker-primary-text',                                              // 新 UI：直接定位 innerText
+    '[data-test-id="logo-pill-label-container"] span',                   // 旧 UI：最内层 span
+    'div.logo-pill-label-container span',                                // 旧 UI 兜底
   ],
-  /** 模型选项：Pro */
-  modelOptionPro: [
-    '[data-test-id="bard-mode-option-pro"]',        // 中英文统一
+  /** 思考深度副标签（找到 = 扩展思考；找不到 = 标准思考） */
+  thinkingDepthLabel: [
+    '.picker-secondary-text',
   ],
-  /** 模型选项：快速 / Quick */
-  modelOptionQuick: [
-    '[data-test-id="bard-mode-option-快速"]',        // 中文
-    '[data-test-id="bard-mode-option-quick"]',       // 英文
+  /** 模型选择面板容器（点击 modelBtn 后弹出的菜单） */
+  modelMenu: [
+    '[data-test-id="gem-mode-menu"]',                                    // 新 UI：data-test-id
+    'gem-menu[role="menu"]',                                              // 新 UI：标签兜底
   ],
-  /** 模型选项：思考 / Think */
-  modelOptionThink: [
-    '[data-test-id="bard-mode-option-思考"]',        // 中文
-    '[data-test-id="bard-mode-option-think"]',       // 英文
-    '[data-test-id="bard-mode-option-thinking"]',    // 英文变体
+  /** 模型选择面板内的所有菜单项（包括模型选项 + 思考深度入口） */
+  modelMenuItems: [
+    '[data-test-id="gem-mode-menu"] gem-menu-item',
+    'gem-menu[role="menu"] gem-menu-item',
   ],
   tempChatBtn: [
     '[data-test-id="temp-chat-button"]',          // 最稳定：测试专属属性
@@ -182,7 +182,7 @@ export function createOps(page) {
 
     /**
      * 点击指定按钮
-     * @param {'sendBtn'|'newChatBtn'|'modelBtn'|'tempChatBtn'|'modelOptionPro'|'modelOptionQuick'|'modelOptionThink'} key
+     * @param {'sendBtn'|'newChatBtn'|'modelBtn'|'tempChatBtn'|'uploadPanelBtn'|'uploadFileBtn'} key
      */
     async click(key) {
       const sels = SELECTORS[key];
@@ -219,8 +219,13 @@ export function createOps(page) {
     /**
      * 获取当前选中的模型名称
      *
-     * 读取模型选择按钮中 logo-pill-label-container 内的 span 文本，
-     * 返回去除空白后的小写文本（如 "pro"、"快速"、"思考"）。
+     * 读取 .picker-primary-text 的 innerText（如 "Pro" / "Flash" / "Flash-Lite"），
+     * 返回原始文本和标准化 model（小写、归类）。
+     *
+     * 标准化规则：
+     *   - "Pro"        → model='pro'
+     *   - "Flash"      → model='flash'
+     *   - "Flash-Lite" → model='flash-lite'
      *
      * @returns {Promise<{ok: boolean, model: string, raw: string, error?: string}>}
      */
@@ -235,8 +240,37 @@ export function createOps(page) {
           return { ok: false, model: '', raw: '', error: 'model_label_not_found' };
         }
         const raw = (el.textContent || '').trim();
-        return { ok: true, model: raw.toLowerCase(), raw };
+        const lower = raw.toLowerCase();
+
+        // 标准化：归类到 pro / flash / flash-lite
+        let model = lower;
+        if (lower.includes('flash-lite')) model = 'flash-lite';
+        else if (lower.includes('flash')) model = 'flash';
+        else if (lower.includes('pro')) model = 'pro';
+
+        return { ok: true, model, raw };
       }, SELECTORS.modelLabel);
+    },
+
+    /**
+     * 获取当前思考深度
+     *
+     * .picker-secondary-text 元素存在 → 扩展思考；不存在 → 标准思考。
+     *
+     * @returns {Promise<{ok: boolean, level: 'standard'|'extended', raw: string}>}
+     */
+    async getThinkingDepth() {
+      return op.query((sels) => {
+        let el = null;
+        for (const sel of sels) {
+          try { el = document.querySelector(sel); } catch { /* skip */ }
+          if (el) break;
+        }
+        if (el) {
+          return { ok: true, level: 'extended', raw: (el.textContent || '').trim() };
+        }
+        return { ok: true, level: 'standard', raw: '' };
+      }, SELECTORS.thinkingDepthLabel);
     },
 
     /**
@@ -251,53 +285,179 @@ export function createOps(page) {
     },
 
     /**
-     * 切换到指定模型
+     * 打开模型选择菜单（点击 modelBtn）
+     * @returns {Promise<{ok: boolean, error?: string}>}
+     * @private
+     */
+    async _openModelMenu() {
+      const openResult = await this.click('modelBtn');
+      if (!openResult.ok) {
+        return { ok: false, error: 'model_menu_open_failed' };
+      }
+      // 等待菜单动画展开
+      await sleep(300);
+      return { ok: true };
+    },
+
+    /**
+     * 关闭模型选择菜单（按 ESC）
+     * @private
+     */
+    async _closeModelMenu() {
+      await op.page.keyboard.press('Escape').catch(() => {});
+      await sleep(150);
+    },
+
+    /**
+     * 切换到指定模型（基于 menu-item 内的 .label 文本匹配）
      *
      * 流程：
-     *   1. 点击模型选择按钮，打开模型下拉菜单
-     *   2. 等待菜单出现
-     *   3. 点击目标模型选项
-     *   4. 等待 UI 稳定
+     *   1. 打开模型菜单
+     *   2. 遍历菜单项，根据 label 文本匹配关键词（pro / flash-lite / flash）
+     *   3. 点击命中的项
      *
-     * @param {'pro'|'quick'|'think'} model - 目标模型
+     * @param {'pro'|'flash'|'flash-lite'} model - 目标模型
      * @returns {Promise<{ok: boolean, error?: string, previousModel?: string}>}
      */
     async switchToModel(model) {
-      const selectorMap = {
-        pro: SELECTORS.modelOptionPro,
-        quick: SELECTORS.modelOptionQuick,
-        think: SELECTORS.modelOptionThink,
+      const keywordMap = {
+        'pro': 'pro',
+        'flash-lite': 'flash-lite',
+        'flash': 'flash',
       };
-
-      const targetSels = selectorMap[model];
-      if (!targetSels) {
-        return { ok: false, error: `unknown_model: ${model}` };
+      const keyword = keywordMap[model];
+      if (!keyword) {
+        return { ok: false, error: `unknown_model: ${model}（可选: pro / flash / flash-lite）` };
       }
 
       // 记录切换前的模型
       const before = await this.getCurrentModel();
       const previousModel = before.ok ? before.raw : undefined;
 
-      // 1. 点击模型选择按钮，打开下拉菜单
-      const openResult = await this.click('modelBtn');
-      if (!openResult.ok) {
-        return { ok: false, error: 'model_menu_open_failed', previousModel };
+      // 已经是目标模型，跳过
+      if (before.ok && before.model === model) {
+        console.log(`[ops] model is already ${model}, skip`);
+        return { ok: true, previousModel, alreadyTarget: true };
       }
 
-      // 2. 等待菜单动画展开
-      await sleep(250);
+      // 1. 打开模型菜单
+      const openResult = await this._openModelMenu();
+      if (!openResult.ok) {
+        return { ok: false, error: openResult.error, previousModel };
+      }
 
-      // 3. 点击目标模型选项
-      const selectResult = await op.click(targetSels);
-      if (!selectResult.ok) {
+      // 2. 在菜单中通过 label 文本匹配并点击
+      const clickResult = await op.query((kw) => {
+        const items = [...document.querySelectorAll('gem-menu-item')];
+        for (const item of items) {
+          const labelEl = item.querySelector('span.label');
+          if (!labelEl) continue;
+          const label = (labelEl.textContent || '').trim().toLowerCase();
+
+          // flash-lite 必须严格匹配（带 -lite），避免被普通 flash 误匹配
+          if (kw === 'flash-lite' && !label.includes('flash-lite')) continue;
+          if (kw === 'flash' && (!label.includes('flash') || label.includes('flash-lite'))) continue;
+          if (kw === 'pro' && !label.includes('pro')) continue;
+
+          // 命中：点击这个 menu-item
+          item.click();
+          return { ok: true, label, tagName: item.tagName.toLowerCase() };
+        }
+        return { ok: false, error: 'no_matching_menu_item' };
+      }, keyword);
+
+      if (!clickResult.ok) {
+        // 找不到目标项，关菜单避免阻塞后续
+        await this._closeModelMenu();
         return { ok: false, error: `model_option_${model}_not_found`, previousModel };
       }
 
-      // 4. 等待 UI 稳定
+      // 3. 等待 UI 稳定
       await sleep(800);
 
-      console.log(`[ops] switched model: ${previousModel || '?'} → ${model}`);
+      console.log(`[ops] switched model: ${previousModel || '?'} → ${model} (label="${clickResult.label}")`);
       return { ok: true, previousModel };
+    },
+
+    /**
+     * 切换思考深度
+     *
+     * 流程：
+     *   1. 打开模型菜单
+     *   2. 找到 trailing-container 有子元素的 menu-item（即"思考深度"入口），点击进入子菜单
+     *   3. 在二级菜单中：靠前的是「标准」，靠后的是「扩展」
+     *   4. 点击对应项
+     *
+     * @param {'standard'|'extended'} level - 目标思考深度
+     * @returns {Promise<{ok: boolean, error?: string, previousLevel?: string}>}
+     */
+    async setThinkingDepth(level) {
+      if (level !== 'standard' && level !== 'extended') {
+        return { ok: false, error: `unknown_level: ${level}（可选: standard / extended）` };
+      }
+
+      // 记录切换前的等级
+      const before = await this.getThinkingDepth();
+      const previousLevel = before.ok ? before.level : undefined;
+
+      if (previousLevel === level) {
+        console.log(`[ops] thinking depth is already ${level}, skip`);
+        return { ok: true, previousLevel, alreadyTarget: true };
+      }
+
+      // 1. 打开模型菜单
+      const openResult = await this._openModelMenu();
+      if (!openResult.ok) {
+        return { ok: false, error: openResult.error, previousLevel };
+      }
+
+      // 2. 找到思考深度入口（trailing-container 有子元素的 menu-item），记录展开前的项数
+      const enterResult = await op.query(() => {
+        const items = [...document.querySelectorAll('gem-menu-item')];
+        const beforeCount = items.length;
+        for (const item of items) {
+          const trailing = item.querySelector('.trailing-container');
+          if (trailing && trailing.children.length > 0) {
+            item.click();
+            return { ok: true, beforeCount };
+          }
+        }
+        return { ok: false, error: 'thinking_depth_entry_not_found', beforeCount };
+      });
+
+      if (!enterResult.ok) {
+        await this._closeModelMenu();
+        return { ok: false, error: enterResult.error, previousLevel };
+      }
+
+      // 3. 等子菜单展开
+      await sleep(400);
+
+      // 4. 子菜单展开后会多出 2 个 menu-item（标准 + 扩展），位置靠前是标准，靠后是扩展
+      //    选最后两个中的对应项点击
+      const pickResult = await op.query((targetLevel, beforeCount) => {
+        const items = [...document.querySelectorAll('gem-menu-item')];
+        if (items.length <= beforeCount) {
+          return { ok: false, error: 'submenu_not_expanded', currentCount: items.length, beforeCount };
+        }
+        // 子菜单的两个新选项是数组的最后两个：倒数第二 = 标准，最后 = 扩展
+        const standard = items[items.length - 2];
+        const extended = items[items.length - 1];
+        const target = targetLevel === 'extended' ? extended : standard;
+        if (!target) return { ok: false, error: 'target_item_not_found' };
+        target.click();
+        const labelEl = target.querySelector('span.label');
+        return { ok: true, label: labelEl ? labelEl.textContent.trim() : '' };
+      }, level, enterResult.beforeCount);
+
+      if (!pickResult.ok) {
+        await this._closeModelMenu();
+        return { ok: false, error: pickResult.error, previousLevel };
+      }
+
+      await sleep(800);
+      console.log(`[ops] switched thinking depth: ${previousLevel || '?'} → ${level} (label="${pickResult.label}")`);
+      return { ok: true, previousLevel };
     },
 
     /**

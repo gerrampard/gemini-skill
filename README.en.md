@@ -95,6 +95,14 @@ Cradling shattered dreams and the story we made."
 
 ## 🆕 What's New
 
+**v1.1.1** (2026-05) — Adapted to the new model menu UI:
+
+- ✅ Model enum updated: `pro` / `flash` / `flash-lite` (replacing legacy `pro` / `quick` / `think`)
+- ✅ Current model read via `.picker-primary-text` innerText
+- ✅ Model switching now iterates menu items + matches label text (i18n-safe)
+- 🆕 New thinking-depth controls: `getThinkingDepth()` / `setThinkingDepth('standard'|'extended')`
+- 🆕 New MCP tool: `gemini_set_thinking_depth`
+
 **v1.1.0** (2026-05) — Adapted to the **May 2026 Gemini UI redesign**:
 
 - ✅ Plus panel button (`gem-icon-button[arialabel="Upload and tools"]`)

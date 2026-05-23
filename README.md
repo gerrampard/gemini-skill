@@ -95,6 +95,14 @@
 
 ## 🆕 最新更新
 
+**v1.1.1**（2026-05）— 适配新版模型菜单 UI：
+
+- ✅ 模型枚举更新：`pro` / `flash` / `flash-lite`（替换旧的 `pro` / `quick` / `think`）
+- ✅ 当前模型读取改为 `.picker-primary-text` innerText
+- ✅ 模型切换改为遍历菜单项 + label 文本匹配（i18n 安全）
+- 🆕 新增思考深度切换：`getThinkingDepth()` / `setThinkingDepth('standard'|'extended')`
+- 🆕 新增 MCP 工具 `gemini_set_thinking_depth`
+
 **v1.1.0**（2026-05）— 已适配 Gemini **2026 年 5 月最新版 UI**：
 
 - ✅ 加号面板按钮（`gem-icon-button[arialabel="上传和工具"]`）
