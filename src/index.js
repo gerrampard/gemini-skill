@@ -13,8 +13,10 @@
  */
 import { ensureBrowser, disconnect } from './browser.js';
 import { createOps } from './gemini-ops.js';
+import { createAtlasProvider } from './atlas-provider.js';
 
 export { disconnect };
+export { createAtlasProvider };
 
 /**
  * 创建 Gemini 操控会话

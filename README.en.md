@@ -73,6 +73,7 @@ Cradling shattered dreams and the story we made."
 - [Architecture](#️-architecture)
 - [Installation](#-installation)
 - [Configuration](#️-configuration)
+- [Atlas Cloud Provider](#-atlas-cloud-provider)
 - [Usage](#-usage)
 - [MCP Tools](#-mcp-tools)
 - [Daemon Lifecycle](#-daemon-lifecycle)
@@ -114,6 +115,28 @@ Cradling shattered dreams and the story we made."
 
 <br>
 
+## ☁️ Atlas Cloud Provider
+
+<p align="center">
+  <img src="./markdown/atlas-cloud-provider.png" alt="Atlas Cloud Logo" width="100%">
+</p>
+
+> Atlas Cloud is a full-modal AI inference platform that gives developers a single AI API to access video generation, image generation, and LLM APIs. Instead of managing multiple vendor integrations, you connect once and get unified access to 300+ curated models across all modalities.
+>
+> Official link: [https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=gemini-skill](https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=gemini-skill)
+>
+> Atlas Cloud also offers a new coding plan promotion for more budget-friendly API access:
+> `https://www.atlascloud.ai/console/coding-plan`
+
+This repository now includes a **minimal-change** Atlas Cloud provider path:
+
+- Keeps the original Gemini browser automation flow intact
+- Adds an OpenAI-compatible Atlas Cloud API provider
+- Supports model listing, standard chat completion, and streaming validation
+- Makes the project usable as both a Gemini automation skill and a MaaS provider integration example
+
+<br>
+
 ## ✨ Features
 
 |  | Feature | Description |
@@ -125,6 +148,7 @@ Cradling shattered dreams and the story we made."
 | 🔄 | **Session Management** | New chat, temp chat, model switching, navigate to historical sessions |
 | 🧹 | **Auto Watermark Removal** | Downloaded images automatically have the Gemini watermark stripped |
 | 🤖 | **MCP Server** | Standard MCP protocol interface, callable by any MCP client |
+| ☁️ | **Atlas Cloud Provider** | Adds an OpenAI-compatible provider for model listing, text generation, and streaming validation |
 
 <br>
 
@@ -217,6 +241,10 @@ All configuration is done via environment variables or `.env` files. A `.env` te
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OUTPUT_DIR` | `./gemini-image` | Image output directory |
+| `ATLAS_BASE_URL` | `https://api.atlascloud.ai/v1` | Atlas Cloud OpenAI-compatible API base URL |
+| `ATLAS_API_KEY` | empty | Atlas Cloud API key, recommended in `.env.development` |
+| `ATLAS_MODEL` | `openai/gpt-4o-mini` | Default Atlas Cloud model |
+| `ATLAS_REQUEST_TIMEOUT_MS` | `60000` | Atlas Cloud request timeout in milliseconds |
 
 ### Reusing OpenClaw's Browser Session
 
@@ -229,6 +257,33 @@ BROWSER_DEBUG_PORT=18800
 **However, please note**: OpenClaw's browser session **does not include the Stealth anti-detection plugin**, making it less resistant to bot detection compared to browser instances managed by this project. This project uses `puppeteer-extra-plugin-stealth` to provide comprehensive anti-detection measures (hiding the webdriver flag, simulating real browser fingerprints, etc.), which better avoids automated detection by websites.
 
 **Recommendation**: Unless you have specific needs, use the default port `40821` and let the project manage its own browser instance for the best anti-detection results.
+
+<br>
+
+## ☁️ Atlas Cloud Provider
+
+### Configuration
+
+Store your local private key in `.env.development`:
+
+```env
+ATLAS_API_KEY=your_atlas_api_key
+ATLAS_BASE_URL=https://api.atlascloud.ai/v1
+ATLAS_MODEL=openai/gpt-4o-mini
+ATLAS_REQUEST_TIMEOUT_MS=60000
+```
+
+### Capability Summary
+
+- `atlas_list_models`: list all models visible to the current API key
+- `atlas_send_message`: run a non-streaming text chat request
+- `atlas_stream_message`: consume Atlas streaming output and return the aggregated text for integration checks
+
+### Design Principles
+
+- Pure API path with no browser or Gemini login dependency
+- Directly compatible with Atlas Cloud's OpenAI-style payloads
+- Leaves all existing `gemini_*` MCP tools unchanged
 
 <br>
 
@@ -279,9 +334,37 @@ console.log('Image saved to:', result.filePath);
 disconnect();
 ```
 
+### Option 4: Call the Atlas Cloud Provider
+
+```javascript
+import { createAtlasProvider } from './src/index.js';
+
+const atlas = createAtlasProvider();
+
+const result = await atlas.createChatCompletion({
+  model: 'openai/gpt-4o-mini',
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'Reply with OK only.' }
+  ],
+  temperature: 0,
+  max_tokens: 16,
+});
+
+console.log(result.choices[0].message.content);
+```
+
 <br>
 
 ## 🔧 MCP Tools
+
+### Atlas Cloud Provider
+
+| Tool | Description | Key Parameters |
+|------|-------------|----------------|
+| `atlas_list_models` | Get all models visible to the current Atlas Cloud API key | — |
+| `atlas_send_message` | Send a non-streaming Atlas Cloud chat request | `model`, `messages`, `temperature`, `max_tokens` |
+| `atlas_stream_message` | Validate Atlas Cloud streaming and return the aggregated output | `model`, `messages`, `temperature`, `max_tokens` |
 
 ### Image Generation
 

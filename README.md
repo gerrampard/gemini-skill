@@ -73,6 +73,7 @@
 - [架构](#️-架构)
 - [安装](#-安装)
 - [配置](#️-配置)
+- [Atlas Cloud Provider](#-atlas-cloud-provider)
 - [使用](#-使用)
 - [MCP 工具列表](#-mcp-工具列表)
 - [Daemon 生命周期](#-daemon-生命周期)
@@ -114,6 +115,28 @@
 
 <br>
 
+## ☁️ Atlas Cloud Provider
+
+<p align="center">
+  <img src="./markdown/atlas-cloud-provider.png" alt="Atlas Cloud Logo" width="100%">
+</p>
+
+> Atlas Cloud 是一个 full-modal AI inference platform，为开发者提供统一 AI API，可一站式访问视频生成、图像生成和 LLM API。接入一次，即可统一访问跨模态的 300+ 精选模型。
+>
+> 官方链接：[https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=gemini-skill](https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=gemini-skill)
+>
+> Atlas Cloud 现提供新的 coding plan 优惠入口，便于更低成本接入 API：
+> `https://www.atlascloud.ai/console/coding-plan`
+
+本仓库现在内置了一个**最小侵入**的 Atlas Cloud provider 方案：
+
+- 不改动原有 Gemini 浏览器自动化主链路
+- 新增 OpenAI 兼容的 Atlas Cloud API provider
+- 支持模型枚举、普通对话、Streaming 对话验证
+- 适合把本项目同时作为 Gemini 自动化 skill + MaaS provider 接入样例
+
+<br>
+
 ## ✨ 功能特性
 
 |  | 功能 | 说明 |
@@ -125,6 +148,7 @@
 | 🔄 | **会话管理** | 新建会话、临时会话、切换模型、导航到历史会话 |
 | 🧹 | **自动去水印** | 下载的图片自动移除 Gemini 水印 |
 | 🤖 | **MCP Server** | 标准 MCP 协议接口，可被任何 MCP 客户端调用 |
+| ☁️ | **Atlas Cloud Provider** | 新增 OpenAI 兼容 Provider，支持模型枚举、文本生成和流式响应验证 |
 
 <br>
 
@@ -217,6 +241,10 @@ npm install
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `OUTPUT_DIR` | `./gemini-image` | 图片输出目录 |
+| `ATLAS_BASE_URL` | `https://api.atlascloud.ai/v1` | Atlas Cloud OpenAI 兼容接口基础地址 |
+| `ATLAS_API_KEY` | 空 | Atlas Cloud API Key，建议写入 `.env.development` |
+| `ATLAS_MODEL` | `openai/gpt-4o-mini` | Atlas Cloud 默认模型 |
+| `ATLAS_REQUEST_TIMEOUT_MS` | `60000` | Atlas Cloud 请求超时（毫秒） |
 
 ### 关于 OpenClaw 浏览器复用
 
@@ -229,6 +257,33 @@ BROWSER_DEBUG_PORT=18800
 **但请注意**：OpenClaw 自带的浏览器会话**没有集成 Stealth 反爬插件**，在反检测能力上不如本项目自行维护的浏览器实例。本项目使用 `puppeteer-extra-plugin-stealth` 提供了完整的反爬保护（隐藏 webdriver 标记、模拟真实浏览器指纹等），能更好地规避网站的自动化检测。
 
 **建议**：除非有特殊需求，推荐使用默认端口 `40821`，让项目自行管理浏览器实例以获得最佳的反爬效果。
+
+<br>
+
+## ☁️ Atlas Cloud Provider
+
+### 配置
+
+推荐将本地私有 Key 写入 `.env.development`：
+
+```env
+ATLAS_API_KEY=your_atlas_api_key
+ATLAS_BASE_URL=https://api.atlascloud.ai/v1
+ATLAS_MODEL=openai/gpt-4o-mini
+ATLAS_REQUEST_TIMEOUT_MS=60000
+```
+
+### 能力说明
+
+- `atlas_list_models`：列出当前 API Key 可见模型
+- `atlas_send_message`：调用非流式文本对话
+- `atlas_stream_message`：消费 Atlas 流式输出并聚合返回，便于做集成验证
+
+### 设计原则
+
+- 走纯 API，不依赖浏览器和 Gemini 登录态
+- 保持对 Atlas Cloud OpenAI 兼容格式的直接透传
+- 不破坏现有 `gemini_*` MCP 工具和调用方式
 
 <br>
 
@@ -279,9 +334,37 @@ console.log('图片保存至:', result.filePath);
 disconnect();
 ```
 
+### 方式四：调用 Atlas Cloud Provider
+
+```javascript
+import { createAtlasProvider } from './src/index.js';
+
+const atlas = createAtlasProvider();
+
+const result = await atlas.createChatCompletion({
+  model: 'openai/gpt-4o-mini',
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'Reply with OK only.' }
+  ],
+  temperature: 0,
+  max_tokens: 16,
+});
+
+console.log(result.choices[0].message.content);
+```
+
 <br>
 
 ## 🔧 MCP 工具列表
+
+### Atlas Cloud Provider
+
+| 工具名 | 说明 | 主要参数 |
+|--------|------|----------|
+| `atlas_list_models` | 获取当前 Atlas Cloud API Key 可见模型 | 无 |
+| `atlas_send_message` | 发送 Atlas Cloud 非流式对话请求 | `model`, `messages`, `temperature`, `max_tokens` |
+| `atlas_stream_message` | 验证 Atlas Cloud Streaming 接口并聚合返回 | `model`, `messages`, `temperature`, `max_tokens` |
 
 ### 核心生图
 

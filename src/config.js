@@ -127,6 +127,20 @@ const config = {
   /** 截图 / 图片输出目录 */
   outputDir: envStr('OUTPUT_DIR', join(projectRoot, 'gemini-image')),
 
+  // ── Atlas Cloud Provider 配置 ──
+
+  /** Atlas Cloud OpenAI 兼容 API Base URL */
+  atlasBaseUrl: envStr('ATLAS_BASE_URL', 'https://api.atlascloud.ai/v1'),
+
+  /** Atlas Cloud API Key */
+  atlasApiKey: envStr('ATLAS_API_KEY', undefined),
+
+  /** Atlas Cloud 默认模型 */
+  atlasDefaultModel: envStr('ATLAS_MODEL', 'openai/gpt-4o-mini'),
+
+  /** Atlas Cloud 请求超时（ms） */
+  atlasRequestTimeoutMs: envInt('ATLAS_REQUEST_TIMEOUT_MS', 60_000),
+
   // ── Daemon 配置 ──
 
   /** Daemon HTTP 服务端口 */

@@ -22,7 +22,7 @@ console.info = console.error;
 console.debug = console.error;
 
 // 复用已有的统一入口，不修改原有逻辑
-import { createGeminiSession, disconnect } from './index.js';
+import { createAtlasProvider, createGeminiSession, disconnect } from './index.js';
 import config from './config.js';
 import { sleep } from './util.js';
 
@@ -30,6 +30,117 @@ const server = new McpServer({
   name: "gemini-mcp-server",
   version: "1.0.0",
 });
+
+const atlasProvider = createAtlasProvider();
+
+// ─── Atlas Cloud Provider ───
+const atlasMessageSchema = z.array(
+  z.object({
+    role: z.enum(['system', 'user', 'assistant']),
+    content: z.string(),
+  })
+).min(1);
+
+server.registerTool(
+  "atlas_list_models",
+  {
+    description: "获取 Atlas Cloud 当前 API Key 可见的模型列表（OpenAI 兼容接口）",
+    inputSchema: {},
+  },
+  async () => {
+    try {
+      const result = await atlasProvider.listModels();
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: "text", text: `Atlas Cloud 模型列表获取失败: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  "atlas_send_message",
+  {
+    description: "通过 Atlas Cloud OpenAI 兼容接口发送一轮文本对话，返回最终文本结果",
+    inputSchema: {
+      model: z.string().default(config.atlasDefaultModel).describe("模型 ID，不传则使用环境变量 ATLAS_MODEL 或默认值"),
+      messages: atlasMessageSchema.describe("OpenAI 风格 messages 数组"),
+      temperature: z.number().min(0).max(2).default(0).describe("采样温度"),
+      max_tokens: z.number().int().positive().default(256).describe("最大输出 token 数"),
+    },
+  },
+  async ({ model, messages, temperature, max_tokens }) => {
+    try {
+      const result = await atlasProvider.createChatCompletion({
+        model,
+        messages,
+        temperature,
+        max_tokens,
+      });
+
+      const text = result?.choices?.[0]?.message?.content ?? '';
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            model: result.model || model,
+            text,
+            usage: result.usage || null,
+            raw: result,
+          }, null, 2),
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: "text", text: `Atlas Cloud 对话失败: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  "atlas_stream_message",
+  {
+    description: "通过 Atlas Cloud 流式接口验证 Streaming 能力，并在服务端聚合后返回完整文本",
+    inputSchema: {
+      model: z.string().default(config.atlasDefaultModel).describe("模型 ID，不传则使用环境变量 ATLAS_MODEL 或默认值"),
+      messages: atlasMessageSchema.describe("OpenAI 风格 messages 数组"),
+      temperature: z.number().min(0).max(2).default(0).describe("采样温度"),
+      max_tokens: z.number().int().positive().default(256).describe("最大输出 token 数"),
+    },
+  },
+  async ({ model, messages, temperature, max_tokens }) => {
+    try {
+      const result = await atlasProvider.createChatCompletionStream({
+        model,
+        messages,
+        temperature,
+        max_tokens,
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            model,
+            text: result.text,
+            chunkCount: result.chunks.length,
+          }, null, 2),
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: "text", text: `Atlas Cloud 流式对话失败: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
 
 // 注册工具
 server.registerTool(
