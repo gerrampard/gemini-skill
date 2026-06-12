@@ -138,6 +138,12 @@
 
 ## ☁️ 懒得配环境？让 gemini-skill 跑在云上
 
+<p align="center">
+  <a href="https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx">
+    <img src="./markdown/Bloome.jpg" alt="Bloome" width="100%">
+  </a>
+</p>
+
 不用装 Node、不用搭环境——在 [Bloome](https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx) 上点一下，
 gemini-skill 就在云端跑起来了，浏览器和手机都行。顺手还能拉进群，和队友一块儿用。
 

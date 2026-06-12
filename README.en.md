@@ -138,6 +138,12 @@ This repository now includes a **minimal-change** Atlas Cloud provider path:
 
 ## ☁️ Too lazy to set up? Run gemini-skill in the cloud
 
+<p align="center">
+  <a href="https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx">
+    <img src="./markdown/Bloome.jpg" alt="Bloome" width="100%">
+  </a>
+</p>
+
 No Node.js install, no environment setup — click once on [Bloome](https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx) and
 gemini-skill runs in the cloud, on desktop and mobile. Invite teammates into a group and use it together.
 
