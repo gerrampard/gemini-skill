@@ -74,6 +74,7 @@
 - [安装](#-安装)
 - [配置](#️-配置)
 - [Atlas Cloud Provider](#-atlas-cloud-provider)
+- [Bloome](#-懒得配环境让-gemini-skill-跑在云上)
 - [使用](#-使用)
 - [MCP 工具列表](#-mcp-工具列表)
 - [Daemon 生命周期](#-daemon-生命周期)
@@ -134,6 +135,11 @@
 - 新增 OpenAI 兼容的 Atlas Cloud API provider
 - 支持模型枚举、普通对话、Streaming 对话验证
 - 适合把本项目同时作为 Gemini 自动化 skill + MaaS provider 接入样例
+
+## ☁️ 懒得配环境？让 gemini-skill 跑在云上
+
+不用装 Node、不用搭环境——在 [Bloome](https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx) 上点一下，
+gemini-skill 就在云端跑起来了，浏览器和手机都行。顺手还能拉进群，和队友一块儿用。
 
 <br>
 

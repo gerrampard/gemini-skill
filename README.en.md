@@ -74,6 +74,7 @@ Cradling shattered dreams and the story we made."
 - [Installation](#-installation)
 - [Configuration](#️-configuration)
 - [Atlas Cloud Provider](#-atlas-cloud-provider)
+- [Bloome](#-too-lazy-to-set-up-run-gemini-skill-in-the-cloud)
 - [Usage](#-usage)
 - [MCP Tools](#-mcp-tools)
 - [Daemon Lifecycle](#-daemon-lifecycle)
@@ -134,6 +135,11 @@ This repository now includes a **minimal-change** Atlas Cloud provider path:
 - Adds an OpenAI-compatible Atlas Cloud API provider
 - Supports model listing, standard chat completion, and streaming validation
 - Makes the project usable as both a Gemini automation skill and a MaaS provider integration example
+
+## ☁️ Too lazy to set up? Run gemini-skill in the cloud
+
+No Node.js install, no environment setup — click once on [Bloome](https://bloome.im/agent/join/5ic86aCp?ref=bvsEWoFx) and
+gemini-skill runs in the cloud, on desktop and mobile. Invite teammates into a group and use it together.
 
 <br>
 
